@@ -1,0 +1,7 @@
+fold 0: MAE 0.2192
+fold 1: MAE 0.2331
+fold 2: MAE 0.2373
+fold 3: MAE 0.2426
+fold 4: MAE 0.2337
+OOF MAE over 5 folds: 0.2332
+wrote submission.csv (603600, 2)
