@@ -1,0 +1,6 @@
+fold 0: missing ['lstm250s1']
+fold 1: lstm 0.2331  lstm250s1 0.2123  | mean-blend 0.2063
+fold 2: missing ['lstm250s1']
+fold 3: missing ['lstm250s1']
+fold 4: missing ['lstm250s1']
+blend OOF MAE over 1 fold(s): 0.2063

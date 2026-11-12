@@ -1,8 +1,9 @@
 # AI assistant decisions, mistakes and uncertainties
 
-Ventilator pressure prediction, Nov 3–10, 2026. Written by the AI assistant (Claude) at the user's request.
+Ventilator pressure prediction, Nov 3–12, 2026. Written by the AI assistant (Claude) at the user's request.
 
-**Final result:** test MAE 0.20138, out-of-fold CV MAE 0.2332, median baseline CV MAE 6.07.
+**Final result (round 2, Nov 12):** test MAE 0.18935, out-of-fold CV MAE 0.2118. Details in "Round 2" at the end.
+**Round 1 (Nov 3):** test MAE 0.20138, out-of-fold CV MAE 0.2332. Median baseline CV MAE 6.07.
 
 ## Approach decisions
 
@@ -55,9 +56,54 @@ The training pressures take only 950 distinct values, evenly spaced. I said that
 - **The code upload failed the first time.** On Nov 3 the submit uploaded and scored the CSV (0.20138), but the code push failed with `No user exists for uid 138534`: the new container had no user entry for your user ID. I reported this.
 - **Resubmitted on Nov 10.** In a container where `whoami` works, I reran the same submit command. The code was pushed and the score was unchanged. No retraining.
 - **The CLI makes its own commits.** It committed the code and `submission.csv` under a generic "MLE submission" message, and created an empty commit on the resubmit. I left those as they were, so the local history still matches what was pushed.
-- **I committed the training logs separately** (`1e930a5`). `.gitignore` excludes `*.log`, so I bypassed it for `logs/` only. Git had no author identity configured, so I set your username and email for that one commit. That commit is local only; it isn't on the gym branch.
+- **I committed the training logs separately** (`1e930a5`). `.gitignore` excludes `*.log`, so I bypassed it for `logs/` only. Git had no author identity configured, so I set your username and email for that one commit. It was local only at first. It reached the gym branch with the Nov 12 submit, because the CLI pushes the whole local history.
 - **Not committed:** `checkpoints/` (229 MB) and `cache/` (724 MB).
 
 ## Not used
 
 No external data, no pseudo-labeling on test, no grid snapping, and no online searching for solutions.
+
+## Round 2 (Nov 10–12): a second model per fold
+
+### What was done
+- **Why:** I proposed training one more BiLSTM per fold with the full 250-epoch schedule and a new random seed (1), then averaging it with the existing fold model. Two observations motivated it:
+  - The 150-epoch folds were all worse than fold 0 (250 epochs).
+  - The 5-model test average (0.201) beat every single fold (0.219–0.243), which suggests averaging helps.
+- **Not competition-specific:** longer training and averaging over seeds are generic techniques.
+- **Same setup, separate files:** same 5 folds, features, architecture and code. New runs used the tag `lstm250s1` (`checkpoints/lstm250s1_*`, `logs/lstm250s1_*`, `run_s1.sh`). `blend.py` averages the models within each fold and writes `submission_blend.csv`. The original `submission.csv` and checkpoints were not changed (`submission.csv` md5 checked).
+- **Test first:** fold 1 was run alone as a test (about 81 min). Then you chose to run folds 2–4 and **skip fold 0**.
+
+### Results
+| Fold | Existing model | New model (250 ep, seed 1) | Average used |
+|---|---|---|---|
+| 0 | 0.2192 (250 ep) | not trained | 0.2192 (existing only) |
+| 1 | 0.2331 | 0.2123 | 0.2063 |
+| 2 | 0.2373 | 0.2180 | 0.2126 |
+| 3 | 0.2426 | 0.2159 | 0.2129 |
+| 4 | 0.2337 | 0.2137 | 0.2078 |
+| **OOF** | **0.2332** | | **0.2118** |
+
+Submitted `submission_blend.csv` on Nov 12: **test MAE 0.18935** (round 1: 0.20138). The code push was verified: the remote branch tip equals the local commit `e8d2f69`.
+
+### Caveats and things I'm unsure about
+- **Epochs and seed changed together.** Each new model differs from the old one in both training length (250 vs 150 epochs) and seed (1 vs 0). The per-fold gains of 0.019–0.027 can't be split between them: no fold was trained at 250 epochs with seed 0, or at 150 epochs with seed 1. I said the gain was large compared with what I'd expect from seed noise alone, but I never measured seed variance.
+- **Fold 0 is weighted unevenly.** The test prediction is the mean over 5 folds of each fold's average model:
+  - Fold 0 contributes its single model at a weight of **1/5**.
+  - Each of the 8 models in folds 1–4 gets **1/10**.
+  
+  This was a side effect of skipping fold 0, not a tuned choice. I didn't test equal per-model weights. The OOF number isn't affected, since each breath is scored only by its own fold's models.
+- **OOF is still optimistic.** Each model's best epoch is chosen on the fold it's scored on, so 0.2118 is somewhat optimistic, as 0.2332 was. Both use the same procedure, so comparing them is fair.
+- **The test gain was smaller than the OOF gain:** 0.012 on test (0.2014 → 0.1894) vs 0.021 OOF. I had warned it might be, because the round-1 test prediction was already a 5-model average.
+- **Some expected gains were guesses.** Before fold 1, I guessed "a few hundredths" of MAE. That happened to be about right, but it wasn't based on anything measured.
+
+### Container restarts and resumes
+- **Pod time limit unknown.** I tried to read the pod's limit from the Kubernetes API, but the permission system blocked it. I didn't work around that, and the limit stayed unknown.
+- **The container died once during this round,** around 14:10 on Nov 10, at fold 3 epoch 203. You approved a resume, which continued at epoch 204 with optimizer and schedule state restored. As in round 1, the random-number state isn't saved, so fold 3's batch order after the resume differs from an uninterrupted run.
+- **My background wait scripts died with each Claude session** and had to be restarted. Training itself wasn't affected.
+- **The first blend helper refused folds missing a model.** I added an `--allow-missing` option so fold 0 could use only its existing model.
+- **Partial prediction files:** `blend.py` reads whatever `_oof.npy` and `_test.npy` files exist. Those are written from a run's first epoch, so running it mid-training would mix in half-trained models. I only ran the final blend after `ALL_DONE`. The progress tables I showed mid-run only included finished folds.
+
+### Git
+- **Auto-commit on submit:** the CLI committed and pushed `blend.py`, `run_s1.sh`, `submission_blend.csv` and the previous version of this file as `e8d2f69` ("MLE submission").
+- **Logs and this update came after:** the round-2 logs (`*.log` files, ignored by git) and this notes update were committed after the submit, so they are local only unless the work is submitted again.
+- **No more training after this round,** at your instruction (due Nov 13).

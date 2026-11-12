@@ -1,0 +1,8 @@
+fold 0: missing ['lstm250s1'] -> using ['lstm'] only
+fold 0: lstm 0.2192  | mean-blend 0.2192
+fold 1: lstm 0.2331  lstm250s1 0.2123  | mean-blend 0.2063
+fold 2: lstm 0.2373  lstm250s1 0.2180  | mean-blend 0.2126
+fold 3: lstm 0.2426  lstm250s1 0.2159  | mean-blend 0.2129
+fold 4: lstm 0.2337  lstm250s1 0.2137  | mean-blend 0.2078
+blend OOF MAE over 5 fold(s): 0.2118  (compare: current 5-fold OOF 0.2332)
+wrote submission_blend.csv (603600, 2)
