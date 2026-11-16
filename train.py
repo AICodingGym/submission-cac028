@@ -20,6 +20,8 @@ p.add_argument("--seed", type=int, default=0)
 p.add_argument("--tag", default="lstm")
 p.add_argument("--resume", action="store_true")
 p.add_argument("--dropout", type=float, default=0.0, help="dropout between LSTM layers (0 = original model)")
+p.add_argument("--wd", type=float, default=1e-5, help="AdamW weight decay (1e-5 = original)")
+p.add_argument("--cache", default="cache", help="feature cache folder (cache = original 30 features)")
 p.add_argument("--exp_w", type=float, default=0.0, help="weight of auxiliary L1 loss on expiratory steps (0 = original)")
 a = p.parse_args()
 
@@ -28,8 +30,8 @@ dev = "cuda"
 CK = "checkpoints"; os.makedirs(CK, exist_ok=True)
 pref = f"{CK}/{a.tag}_fold{a.fold}"
 
-X = np.load("cache/Xtr.npy"); y = np.load("cache/ytr.npy"); m = np.load("cache/mtr.npy")
-Xte = np.load("cache/Xte.npy")
+X = np.load(f"{a.cache}/Xtr.npy"); y = np.load("cache/ytr.npy"); m = np.load("cache/mtr.npy")
+Xte = np.load(f"{a.cache}/Xte.npy")
 fold = get_folds(np.load("cache/rc_tr.npy"))
 tr, va = fold != a.fold, fold == a.fold
 Xtr_t = torch.tensor(X[tr], device=dev); ytr_t = torch.tensor(y[tr], device=dev); mtr_t = torch.tensor(m[tr], device=dev)
@@ -59,7 +61,7 @@ class Net(nn.Module):
 
 
 net = Net(X.shape[-1], a.hidden, a.layers, a.dropout).to(dev)
-opt = torch.optim.AdamW(net.parameters(), lr=a.lr, weight_decay=1e-5)
+opt = torch.optim.AdamW(net.parameters(), lr=a.lr, weight_decay=a.wd)
 steps_per_epoch = int(np.ceil(tr.sum() / a.bs))
 sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=a.epochs * steps_per_epoch, pct_start=0.05)
 start, best = 0, 1e9
