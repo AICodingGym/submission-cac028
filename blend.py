@@ -3,7 +3,7 @@
 Usage: python blend.py lstm lstm250s1 [--write]
 Reports, for each fold that has every tag, the MAE of each tag and of their mean.
 With --allow-missing, a fold lacking some tags uses the mean of the tags it has.
-With --write (all 5 folds covered), writes submission_blend.csv.
+With --write (all 5 folds covered), writes submission_blend.csv, or the file given by --out=NAME.
 Never touches submission.csv or existing checkpoints.
 """
 import os
@@ -15,6 +15,7 @@ from folds import get_folds
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 write = "--write" in sys.argv
 allow_missing = "--allow-missing" in sys.argv
+out = next((x.split("=", 1)[1] for x in sys.argv if x.startswith("--out=")), "submission_blend.csv")
 tags = args or ["lstm", "lstm250s1"]
 
 y = np.load("cache/ytr.npy"); m = np.load("cache/mtr.npy")
@@ -51,5 +52,6 @@ if write:
     sub = pd.DataFrame({"id": np.load("cache/te_ids.npy"), "pressure": np.mean(tests, axis=0).reshape(-1)})
     sub = ss[["id"]].merge(sub, on="id", how="left")
     assert sub["pressure"].notna().all() and len(sub) == len(ss)
-    sub.to_csv("submission_blend.csv", index=False)
-    print("wrote submission_blend.csv", sub.shape)
+    assert out != "submission.csv", "refusing to overwrite submission.csv"
+    sub.to_csv(out, index=False)
+    print("wrote", out, sub.shape)
