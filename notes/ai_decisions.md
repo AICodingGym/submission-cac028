@@ -1,9 +1,10 @@
 # AI assistant decisions, mistakes and uncertainties
 
-Ventilator pressure prediction, Nov 3–12, 2026. Written by the AI assistant (Claude) at the user's request.
+Ventilator pressure prediction, Nov 3–15, 2026. Written by the AI assistant (Claude) at the user's request.
 
-**Final result (round 2, Nov 12):** test MAE 0.18935, out-of-fold CV MAE 0.2118. Details in "Round 2" at the end.
-**Round 1 (Nov 3):** test MAE 0.20138, out-of-fold CV MAE 0.2332. Median baseline CV MAE 6.07.
+**Latest result (round 3, Nov 15):** test MAE 0.18259, out-of-fold CV MAE 0.1992. Details in "Round 3" at the end.
+**Round 2 (Nov 12):** test MAE 0.18935, OOF 0.2118.
+**Round 1 (Nov 3):** test MAE 0.20138, OOF 0.2332. Median baseline CV MAE 6.07.
 
 ## Approach decisions
 
@@ -106,4 +107,66 @@ Submitted `submission_blend.csv` on Nov 12: **test MAE 0.18935** (round 1: 0.201
 ### Git
 - **Auto-commit on submit:** the CLI committed and pushed `blend.py`, `run_s1.sh`, `submission_blend.csv` and the previous version of this file as `e8d2f69` ("MLE submission").
 - **Logs and this update came after:** the round-2 logs (`*.log` files, ignored by git) and this notes update were committed after the submit, so they are local only unless the work is submitted again.
-- **No more training after this round,** at your instruction (due Nov 13).
+- **No more training after this round,** at your instruction (due Nov 13). You later said this was not actually the deadline and that there were 4 more days, so round 3 followed.
+
+## Round 3 (Nov 12–15): one-fold tests, dropout models, user-ID fix
+
+### Diagnosis before choosing what to test (no training)
+- **Test beats OOF because of how each is scored.** OOF scores each breath with only its own fold's models, while test averages all folds' models. The gap shrank from 0.032 to 0.022 once OOF itself averaged 2 models per fold. Test-set sampling noise is only about ±0.004, and best-epoch selection optimism was at most 0.0002 in all 9 runs, so neither explains it.
+- **Where the error is:** R=50 lungs carry 52% of the error, mostly because their pressure moves much more per step. Relative to that movement they aren't worse. For every R, the residual is a smooth drift (lag-1 autocorrelation 0.91–0.95) that grows through the inhale. 2.3% of breaths (some physically odd-looking) carry 20% of the error.
+- **Grid snapping (competition-specific):** measured at only −0.0013 OOF. **Not used.**
+
+### One-fold tests (fold 1, 250 epochs, one change each)
+Reference: seed 1, no dropout, 0.2123.
+
+| Run | Val MAE | Change |
+|---|---|---|
+| Dropout 0.2 (seed 1) | 0.2065 | −0.0058 |
+| Seed 2 (no other change) | 0.2141 | +0.0018: our only seed-noise estimate |
+| Auxiliary loss on exhale steps (weight 0.25) | 0.2129 | +0.0007: no gain, dropped |
+
+- **One seed pair only:** "dropout beats seed noise by 3–4×" rests on that single pair of seeds. The bootstrap ranges cover breath sampling, not training randomness.
+- **Code changes:**
+  - `train.py` gained `--dropout` and `--exp_w`. Both default to 0, and I verified the defaults reproduce saved predictions exactly.
+  - Checkpoint writes became atomic: a temp file, then a rename.
+
+### Dropout models on all folds
+- **Plan:** you approved dropout 0.2 on 5 folds × 2 seeds. Fold 1's seed-1 model was reused from the test, since it had an identical config (byte-identical copy).
+- **Seed 2 cancelled:** you cancelled it for time. I stopped only the runner script, by PID, and let fold 0 finish.
+- **Results (seed 1):**
+
+| Fold | Non-dropout | Dropout |
+|---|---|---|
+| 0 | 0.2192 | 0.2150 |
+| 1 | 0.2123 | 0.2065 |
+| 2 | 0.2180 | 0.2140 |
+| 3 | 0.2159 | **0.2195** (dropout lost) |
+| 4 | 0.2137 | 0.2161 (stopped at epoch ~207 of 250) |
+
+  I had been describing dropout as winning on every fold until fold 3 finished. It won on 3 of 4 finished folds.
+- **Pod problems:**
+  - The pod restarted three times during this run.
+  - Twice the replacement pod had **no GPU** (2 CPUs, 8 GB).
+  - Fold 3 resumed correctly from epoch 97.
+  - Fold 4 never finished.
+
+### Final blend and submission (Nov 15)
+- **What's in it:** a plain per-fold mean of every 250-epoch model. The 150-epoch models were dropped.
+  - Fold 0: original 250-epoch model (re-tagged `lstm250s0`) + dropout.
+  - Fold 1: seed 1 + seed 2 + dropout.
+  - Folds 2–4: seed 1 + dropout.
+- **Partly trained model included:** fold 4's dropout model is the epoch-~207 one, because no GPU was available.
+- **Scores:** OOF 0.1992. Submitted `submission_final.csv` at your request: **test MAE 0.18259**. The code push was verified (`8124962`).
+- **Uneven model counts:** fold 1 has 3 models while the others have 2. Each fold still counts 1/5 in the test average.
+- **Other blends tested on OOF:** median 0.1993, inverse-MAE weighted 0.1991, dropout up-weighted 0.2005. None beats the mean.
+
+### Leaderboard name ("Anonymous") and the user ID
+- **Cause:** the CLI had been configured with `cac028` (the UCSD username), not your website profile ID. At your request I reconfigured it with your profile ID and resubmitted the same file (same score). Your name then appeared.
+- **Key problem:** the reconfigure generated a new SSH key that the code repository doesn't accept, so that resubmit's code push failed. No code was lost: the only missing commit, `67c948b`, has no file changes. I pointed `private_key_path` back to the old `cac028_id_rsa` key and confirmed with a dry-run push. The old config is backed up at `~/.aicodinggym.bak`.
+- **Not via your GitHub account:** submissions use the gym's own key and repository, never your personal GitHub account.
+
+### 4-hour GPU plan (prepared Nov 15; not yet run)
+- **Runs:** `run_gpu4h.sh` finishes fold 4's dropout model, then adds dropout seed-2 models on folds 3 and 0.
+- **Safety:** it refuses to start without a GPU. After each finished run it rebuilds `submission_final2.csv` from finished models only (new `blend.py --done-only`). It never submits.
+- **Expected gain:** about 0.0015–0.003 OOF. That's a rough estimate.
+- **Under review:** at your request, a second AI agent is reviewing this plan.

@@ -15,6 +15,7 @@ from folds import get_folds
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 write = "--write" in sys.argv
 allow_missing = "--allow-missing" in sys.argv
+done_only = "--done-only" in sys.argv
 out = next((x.split("=", 1)[1] for x in sys.argv if x.startswith("--out=")), "submission_blend.csv")
 tags = args or ["lstm", "lstm250s1"]
 
@@ -29,6 +30,12 @@ def mae(p, k):
 oof_blend = np.full_like(y, np.nan); tests = []
 for k in range(5):
     have = [t for t in tags if os.path.exists(f"checkpoints/{t}_fold{k}_oof.npy")]
+    if done_only:  # drop runs whose log exists but never reached DONE (interrupted mid-training)
+        unfinished = [t for t in have if os.path.exists(f"logs/{t}_fold{k}.log")
+                      and "DONE" not in open(f"logs/{t}_fold{k}.log").read()]
+        if unfinished:
+            print(f"fold {k}: skipping unfinished {unfinished}")
+        have = [t for t in have if t not in unfinished]
     if len(have) < len(tags):
         print(f"fold {k}: missing {sorted(set(tags) - set(have))}" + (f" -> using {have} only" if allow_missing and have else ""))
         if not (allow_missing and have):
