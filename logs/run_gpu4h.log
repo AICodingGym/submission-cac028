@@ -1,1 +1,5 @@
 NO GPU - aborting
+18:27:23 blends rebuilt: A blend OOF MAE over 5 fold(s): 0.1990 | B blend OOF MAE over 5 fold(s): 0.1986
+19:48:49 blends rebuilt: A blend OOF MAE over 5 fold(s): 0.1981 | B blend OOF MAE over 5 fold(s): 0.1977
+21:10:18 blends rebuilt: A blend OOF MAE over 5 fold(s): 0.1972 | B blend OOF MAE over 5 fold(s): 0.1968
+21:10:18 ALL_DONE
