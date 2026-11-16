@@ -1,8 +1,9 @@
 # AI assistant decisions, mistakes and uncertainties
 
-Ventilator pressure prediction, Nov 3–15, 2026. Written by the AI assistant (Claude) at the user's request.
+Ventilator pressure prediction, Nov 3–16, 2026. Written by the AI assistant (Claude) at the user's request.
 
-**Latest result (round 3, Nov 15):** test MAE 0.18259, out-of-fold CV MAE 0.1992. Details in "Round 3" at the end.
+**Best result (round 4, Nov 16):** test MAE **0.18209**, OOF 0.1968 (`submission_final3b.csv`). Details in "Round 4" at the end.
+**Round 3 (Nov 15):** test MAE 0.18259, OOF 0.1992.
 **Round 2 (Nov 12):** test MAE 0.18935, OOF 0.2118.
 **Round 1 (Nov 3):** test MAE 0.20138, OOF 0.2332. Median baseline CV MAE 6.07.
 
@@ -181,3 +182,52 @@ At your request, a second AI agent reviewed the 4-hour plan, without training or
   - Together: OOF 0.1992 → **0.1979**, written to `submission_final2.csv` (not submitted).
 - **Where I disagreed:** it said weight 0.33 for the 150-epoch models would make the blend worse. I measured otherwise: weights from 0.1 to 0.5 all give 0.1979–0.1983, and only full weight 1 hurts (0.1995). I used 0.25. It was picked after seeing that flat curve, so it's lightly tuned on OOF.
 - **A bug it caught:** `--done-only` would have dropped fold 4's partial dropout model if the run finishing it were cut off. That would make the blend worse than the current submission. It now applies only to the new seed-2 runs.
+
+## Round 4 (Nov 15–16): reviewed GPU plan, best-of submissions, 80-epoch screen
+
+### Submissions (the leaderboard keeps your best score)
+| File | What | OOF | Test |
+|---|---|---|---|
+| `submission_final2.csv` | Round-3 blend + aux-loss model (fold 1) + 150-epoch models at weight 0.25 | 0.1979 | 0.18304 (worse) |
+| `submission_final3.csv` (A) | Full-length models only, after the GPU runs below | 0.1972 | 0.18217 |
+| `submission_final3b.csv` (B) | A + the aux-loss model on fold 1 | 0.1968 | **0.18209** (best) |
+
+- **A gain that didn't transfer:** adding the weak 150-epoch models improved OOF but made test *worse*. The weight (0.25) was chosen after looking at OOF, and the test prediction already averages about 11 models. After that, blends used full-length models only, at equal weights.
+- **Test-set selection:** we submitted several variants and the leaderboard keeps the best, so the reported best score involves mild selection on the test set (3 variants this round).
+- **Test vs OOF:** test gains ran at only about 0.2–0.6× the OOF gains this round.
+
+### GPU runs (Nov 15–16)
+| Run | Result |
+|---|---|
+| Fold 4 dropout model, finished (epochs 208–250) | 0.2161 → 0.2134 |
+| Dropout seed 2, fold 0 | 0.2148 |
+| Dropout seed 2, fold 3 | 0.2151 (fold 3's seed-1 dropout model: 0.2195, so its earlier "loss" looks like seed luck) |
+| Dropout seed 2, fold 2 | **Paused at epoch 20**, to free the GPU for the tests below. Resumable |
+
+### Correction: "train MAE" in the logs is measured with dropout ON
+- **The mistake:** I had argued that dropout cut the train–validation gap to "0.16 vs 0.21". You asked whether the 0.16 was measured in eval mode. It wasn't: the logged train value is the running average of the training loss with dropout active.
+- **Measured properly** (fold-1 models, train breaths, eval mode):
+
+| Model | Train breaths, eval mode | Validation | Gap |
+|---|---|---|---|
+| No dropout | 0.0771 | 0.2123 | 0.135 |
+| Dropout 0.2 | 0.1145 | 0.2065 | 0.092 |
+
+- **So:** overfitting remains large even with dropout. That made stronger regularization the leading direction.
+
+### Width test
+- **Hidden 512:** 46 s/epoch, about 3.2 h per 250-epoch run, with a 10.8 GB peak on the 11 GB GPU. Hidden 384 had been 90 s/epoch.
+- **Not run at full length:** a 5-fold rollout would take about 16 h per seed.
+
+### 80-epoch screen on fold 1 (in progress Nov 16, assignment due that night)
+- **Design:** all runs use the full OneCycle schedule compressed into 80 epochs, with hidden 256 and dropout 0.2 unless that is the change. One change per run against the baseline `scr80_base_s1`.
+- **Candidates:**
+  - weight decay 1e-2 (`scr80_wd1e2`; the original 1e-5 is effectively none)
+  - dropout 0.3 (`scr80_drop03`)
+  - third slot pending your choice: R·C time-constant features (`cache_rc/`, built by `features_rc.py`) or a "9-feature" test
+- **New `train.py` options:** `--wd` and `--cache`. Their defaults reproduce the original behaviour.
+- **Dropped for time:** a second baseline seed (so there's no seed-noise estimate at 80 epochs) and the hidden-512 run.
+- **Caveats:**
+  - Rankings at 80 epochs may not hold at 250 epochs. On fold 1, dropout was behind at epoch 100 of a 250-epoch run and ahead at the end.
+  - **No screened change can reach a submission before the deadline:** a 5-fold rollout takes about 7 h. The screen is for findings, not for tonight's score.
+- **Process note:** each runner swap stopped only the runner script, by PID. The training process kept running and the new runner waited for it.
