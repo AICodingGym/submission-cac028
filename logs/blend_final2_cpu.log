@@ -1,0 +1,12 @@
+fold 0: missing ['drop02s2', 'exp_aux025', 'exp_seed2', 'lstm250s1'] -> using ['lstm250s0', 'drop02s1'] only
+fold 0: lstm250s0 0.2192  drop02s1 0.2150  | blend 0.2016
+fold 1: missing ['drop02s2', 'lstm250s0'] -> using ['lstm250s1', 'exp_seed2', 'drop02s1', 'exp_aux025', 'lstm'] only
+fold 1: lstm250s1 0.2123  exp_seed2 0.2141  drop02s1 0.2065  exp_aux025 0.2129  lstm(w0.25) 0.2331  | blend 0.1881
+fold 2: missing ['drop02s2', 'exp_aux025', 'exp_seed2', 'lstm250s0'] -> using ['lstm250s1', 'drop02s1', 'lstm'] only
+fold 2: lstm250s1 0.2180  drop02s1 0.2140  lstm(w0.25) 0.2373  | blend 0.2004
+fold 3: missing ['drop02s2', 'exp_aux025', 'exp_seed2', 'lstm250s0'] -> using ['lstm250s1', 'drop02s1', 'lstm'] only
+fold 3: lstm250s1 0.2159  drop02s1 0.2195  lstm(w0.25) 0.2426  | blend 0.2015
+fold 4: missing ['drop02s2', 'exp_aux025', 'exp_seed2', 'lstm250s0'] -> using ['lstm250s1', 'drop02s1', 'lstm'] only
+fold 4: lstm250s1 0.2137  drop02s1 0.2161  lstm(w0.25) 0.2337  | blend 0.1981
+blend OOF MAE over 5 fold(s): 0.1979
+wrote submission_final2.csv (603600, 2)

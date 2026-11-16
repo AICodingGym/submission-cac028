@@ -170,3 +170,14 @@ Reference: seed 1, no dropout, 0.2123.
 - **Safety:** it refuses to start without a GPU. After each finished run it rebuilds `submission_final2.csv` from finished models only (new `blend.py --done-only`). It never submits.
 - **Expected gain:** about 0.0015–0.003 OOF. That's a rough estimate.
 - **Under review:** at your request, a second AI agent is reviewing this plan.
+
+### Plan review by a second agent (Nov 15)
+At your request, a second AI agent reviewed the 4-hour plan, without training or editing anything. I re-checked its numbers myself.
+- **Fold choice:** it pointed out that choosing folds by "weakest blend" was poor reasoning, since every fold counts 1/5 in the test average. The better rule is to add models where folds have the fewest. I changed the order to fold 0, then fold 3.
+- **Gain estimate:** it said my expected gain was too high for test. Test gains have been about 0.57× the OOF gains, so roughly −0.0005 to −0.0012 on test.
+- **Free gains from existing models (verified):**
+  - Adding the finished `exp_aux025` fold-1 model, which I had wrongly left out because it didn't help as a single model.
+  - Adding the old 150-epoch models at a reduced weight.
+  - Together: OOF 0.1992 → **0.1979**, written to `submission_final2.csv` (not submitted).
+- **Where I disagreed:** it said weight 0.33 for the 150-epoch models would make the blend worse. I measured otherwise: weights from 0.1 to 0.5 all give 0.1979–0.1983, and only full weight 1 hurts (0.1995). I used 0.25. It was picked after seeing that flat curve, so it's lightly tuned on OOF.
+- **A bug it caught:** `--done-only` would have dropped fold 4's partial dropout model if the run finishing it were cut off. That would make the blend worse than the current submission. It now applies only to the new seed-2 runs.
