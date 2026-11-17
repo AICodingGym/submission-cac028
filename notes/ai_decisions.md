@@ -248,3 +248,22 @@ For time, the queue was trimmed at your request:
 - **Schedule length dominates:** the same baseline reaches 0.2065 at 250 epochs against 0.2871 at 80.
 - **Caveat:** one seed per run and no seed-noise estimate at 80 epochs. Rankings at 80 epochs may not hold at 250.
 - **Not run at all:** R·C features (`cache_rc/` is built), dropout 0.3, hidden 512.
+
+## Final state (Nov 16, training stopped)
+- **Training stopped** at your request, to leave time for the report.
+- **Best test MAE: 0.18209** (`submission_final3b.csv`, OOF 0.1968). The leaderboard keeps the best submission.
+
+| Submission | OOF | Test |
+|---|---|---|
+| `submission.csv` (round 1) | 0.2332 | 0.20138 |
+| `submission_blend.csv` (round 2) | 0.2118 | 0.18935 |
+| `submission_final.csv` (round 3) | 0.1992 | 0.18259 |
+| `submission_final2.csv` (+ 150-epoch models at weight 0.25) | 0.1979 | 0.18304 |
+| `submission_final3.csv` (A: full-length models) | 0.1972 | 0.18217 |
+| **`submission_final3b.csv` (B: A + aux-loss model on fold 1)** | **0.1968** | **0.18209** |
+
+- **Left unfinished:**
+  - Dropout seed 2 on fold 2 (paused at epoch 20; not in any submission) and on fold 4 (never started).
+  - The R·C-feature cache (`cache_rc/`) is built but was never trained on.
+- **Not committed (large, regenerable):** `checkpoints/`, `cache/`, `cache_rc/`, `cache_raw9/`. Rebuild them with `features.py`, `features_rc.py` and the slicing step described in `notes/cache_raw9_README.txt`.
+- **Final code** is pushed to the submission repository (branch `ventilator-pressure-prediction`).
