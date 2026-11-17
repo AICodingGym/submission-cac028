@@ -231,3 +231,20 @@ At your request, a second AI agent reviewed the 4-hour plan, without training or
   - Rankings at 80 epochs may not hold at 250 epochs. On fold 1, dropout was behind at epoch 100 of a 250-epoch run and ahead at the end.
   - **No screened change can reach a submission before the deadline:** a 5-fold rollout takes about 7 h. The screen is for findings, not for tonight's score.
 - **Process note:** each runner swap stopped only the runner script, by PID. The training process kept running and the new runner waited for it.
+
+### 80-epoch screen results (Nov 16)
+For time, the queue was trimmed at your request:
+- **Not run:** dropout 0.3 (cut before it started), the second baseline seed, and hidden 512.
+- **Swapped out:** the R·C-feature run was replaced, at your request, by a "raw 9 features" ablation. That set is `u_in`, `u_out`, `time_step` and the R/C one-hots, sliced from the same scaled cache (`cache_raw9/`).
+
+| Run (fold 1, 80 epochs, dropout 0.2, seed 1) | Best val MAE | vs baseline |
+|---|---|---|
+| Baseline, 30 features | 0.2871 | — |
+| Weight decay 1e-2 | 0.2894 | +0.0023 (no gain; within likely noise) |
+| Raw 9 features only | 0.3447 | **+0.0576** (much worse) |
+
+- **The engineered features matter a lot:** without them, error is about 20% higher at 80 epochs. That gap is far beyond any plausible seed noise. This is the first ablation we ran. Which of the 21 engineered features carry the gain is still untested.
+- **Real weight decay didn't help** at 80 epochs. It may still matter at 250 epochs; not tested.
+- **Schedule length dominates:** the same baseline reaches 0.2065 at 250 epochs against 0.2871 at 80.
+- **Caveat:** one seed per run and no seed-noise estimate at 80 epochs. Rankings at 80 epochs may not hold at 250.
+- **Not run at all:** R·C features (`cache_rc/` is built), dropout 0.3, hidden 512.

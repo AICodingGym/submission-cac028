@@ -1,0 +1,4 @@
+15:08:59 scr80_base_s1: DONE fold 1 best val MAE 0.2871
+15:35:42 scr80_wd1e2: DONE fold 1 best val MAE 0.2894
+16:02:24 scr80_raw9: DONE fold 1 best val MAE 0.3447
+16:02:24 ALL_DONE

@@ -1,0 +1,4 @@
+80-epoch screen, fold 1 (best val MAE), one change each vs baseline:
+  scr80_base_s1 0.2871
+  scr80_wd1e2 0.2894
+  scr80_raw9 0.3447
